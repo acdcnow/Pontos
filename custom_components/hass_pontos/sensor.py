@@ -37,6 +37,16 @@ class PontosSensor(CoordinatorEntity, SensorEntity):
         self._code_dict = sensor_config.get("code_dict", None)
         self._scale = sensor_config.get("scale", None)
         self._attributes = sensor_config.get("attributes", {})
+        # A sensor that declares a state_class is recorded by Home Assistant and must
+        # therefore report a real number, never a string. Cumulative
+        # ("total_increasing") meters can additionally never count backwards, so they
+        # are clamped at zero. Both can be overridden per sensor in the device config.
+        state_class = getattr(self._attr_state_class, "value", self._attr_state_class)
+        self._is_total_meter = state_class == "total_increasing"
+        self._numeric = sensor_config.get("numeric", state_class is not None)
+        self._clamp_min = sensor_config.get(
+            "clamp_min", 0 if self._is_total_meter else None
+        )
         self._attr_unique_id = slugify(
             f"{device_info['serial_number']}_{sensor_config['name']}"
         )
@@ -115,6 +125,36 @@ class PontosSensor(CoordinatorEntity, SensorEntity):
                 _data = round(float(_data) * self._scale, 2)
             except (ValueError, TypeError):
                 pass
+
+        # Numeric sensors have to hand Home Assistant a real number. Returning a
+        # string for a sensor that declares a state_class breaks the water/energy
+        # statistics and shows up as a wrong or missing reading on the dashboard.
+        if self._numeric and _data is not None:
+            try:
+                number = float(_data)
+            except (ValueError, TypeError):
+                LOGGER.warning(
+                    "%s: expected a number for '%s' but got '%s' - marking unavailable",
+                    self._key,
+                    self._endpoint,
+                    _data,
+                )
+                return None
+
+            # A cumulative meter can only grow, so a negative reading is invalid and
+            # would otherwise poison the long-term statistics. Clamp it instead.
+            if self._clamp_min is not None and number < self._clamp_min:
+                LOGGER.warning(
+                    "%s: '%s' reported an invalid value of %s, clamping to %s",
+                    self._key,
+                    self._endpoint,
+                    number,
+                    self._clamp_min,
+                )
+                number = self._clamp_min
+
+            # Keep whole numbers as ints so states render as "268289", not "268289.0".
+            _data = int(number) if float(number).is_integer() else number
 
         # Update sensor data
         return _data
