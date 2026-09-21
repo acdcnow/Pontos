@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import ipaddress
 import logging
+import re
+from typing import Any
 
 import voluptuous as vol
 from homeassistant import config_entries
@@ -61,6 +63,33 @@ IP_SCHEMA = TextSelector()
 PORT_SCHEMA = NumberSelector(
     NumberSelectorConfig(min=1, max=65535, step=1, mode=NumberSelectorMode.BOX)
 )
+
+#: Host names (mDNS, DNS, NetBIOS) are accepted as well as IP addresses, so
+#: "pontos.fritz.box" works like "192.168.1.100".
+HOST_PATTERN = re.compile(
+    r"^(?=.{1,253}$)"
+    r"[A-Za-z0-9]([A-Za-z0-9-]{0,61}[A-Za-z0-9])?"
+    r"(\.[A-Za-z0-9]([A-Za-z0-9-]{0,61}[A-Za-z0-9])?)*$"
+)
+
+
+def _valid_host(value: str | None) -> bool:
+    """Return True for an IPv4/IPv6 address or a host name."""
+    host = (value or "").strip()
+    if not host:
+        return False
+
+    try:
+        ipaddress.ip_address(host)
+    except ValueError:
+        return bool(HOST_PATTERN.match(host))
+
+    return True
+
+
+def _clean_host(value: Any) -> str:
+    """Return the entered host without surrounding whitespace."""
+    return str(value or "").strip()
 
 
 async def async_connection_works(
@@ -194,7 +223,7 @@ class PontosConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     },
                     options=normalise_options(
                         {
-                            CONF_IP_ADDRESS: user_input[CONF_IP_ADDRESS],
+                            CONF_IP_ADDRESS: _clean_host(user_input[CONF_IP_ADDRESS]),
                             CONF_PORT: user_input[CONF_PORT],
                             CONF_FETCH_INTERVAL: user_input[CONF_FETCH_INTERVAL],
                         }
@@ -240,7 +269,7 @@ class PontosConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     },
                     options=normalise_options(
                         {
-                            CONF_IP_ADDRESS: user_input[CONF_IP_ADDRESS],
+                            CONF_IP_ADDRESS: _clean_host(user_input[CONF_IP_ADDRESS]),
                             CONF_PORT: user_input[CONF_PORT],
                             CONF_FETCH_INTERVAL: user_input[CONF_FETCH_INTERVAL],
                         }
@@ -272,14 +301,12 @@ class PontosConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
     async def _async_validate(self, user_input: dict) -> dict[str, str]:
         """Validate the given connection details."""
-        try:
-            ipaddress.ip_address(user_input[CONF_IP_ADDRESS])
-        except ValueError:
+        if not _valid_host(user_input[CONF_IP_ADDRESS]):
             return {"base": "invalid_ip"}
 
         if not await async_connection_works(
             self.hass,
-            user_input[CONF_IP_ADDRESS],
+            _clean_host(user_input[CONF_IP_ADDRESS]),
             user_input[CONF_PORT],
             user_input[CONF_MAKE],
         ):
@@ -301,14 +328,15 @@ class PontosOptionsFlow(OptionsFlow):
         """Show the settings form."""
         entry = self.config_entry
         errors: dict[str, str] = {}
+        suggested = self._section_values(self._current_options())
 
         if user_input is not None:
             options = self._flatten(user_input)
+            # If the form has to be shown again, keep what the user entered.
+            suggested = self._section_values(options)
             ip_address = options[CONF_IP_ADDRESS]
 
-            try:
-                ipaddress.ip_address(ip_address)
-            except ValueError:
+            if not _valid_host(ip_address):
                 errors["base"] = "invalid_ip"
 
             if not errors and ip_address != get_option(entry, CONF_IP_ADDRESS):
@@ -331,7 +359,7 @@ class PontosOptionsFlow(OptionsFlow):
         return self.async_show_form(
             step_id="init",
             data_schema=self.add_suggested_values_to_schema(
-                self._options_schema(), self._current_options()
+                self._options_schema(), suggested
             ),
             errors=errors,
         )
@@ -361,6 +389,40 @@ class PontosOptionsFlow(OptionsFlow):
             CONF_MAKE, DEFAULT_MAKE
         )
         return values
+
+    #: Section of the settings form -> the options it contains. Order matters
+    #: for the generated form only, the values are stored flat.
+    SECTION_OPTIONS: dict[str, tuple[str, ...]] = {
+        "connection": (
+            CONF_IP_ADDRESS,
+            CONF_PORT,
+            CONF_HTTP_TIMEOUT,
+            CONF_RETRY_ATTEMPTS,
+            CONF_RETRY_DELAY,
+        ),
+        "polling": (CONF_FETCH_INTERVAL,),
+        "device": (CONF_DEVICE_NAME, CONF_MAKE),
+        "data_quality": (
+            CONF_IGNORE_INVALID_VALUES,
+            CONF_STALE_TOLERANCE,
+            CONF_VOLUME_UNIT,
+        ),
+        "entities": (CONF_ENABLE_DIAGNOSTICS, CONF_ENABLE_CONTROLS),
+        "logging": (CONF_DEBUG_LOGGING,),
+    }
+
+    @classmethod
+    def _section_values(cls, options: dict) -> dict[str, dict]:
+        """Group flat option values into the sections of the form.
+
+        `add_suggested_values_to_schema` only fills the fields of a `section`
+        when the suggested values are nested under the section name, so a flat
+        mapping would leave the form empty.
+        """
+        return {
+            section: {key: options[key] for key in keys if key in options}
+            for section, keys in cls.SECTION_OPTIONS.items()
+        }
 
     def _options_schema(self) -> vol.Schema:
         """Return the grouped settings schema."""
@@ -432,4 +494,8 @@ class PontosOptionsFlow(OptionsFlow):
         for value in user_input.values():
             if isinstance(value, dict):
                 options.update(value)
-        return normalise_options(options)
+
+        options = normalise_options(options)
+        if (host := options.get(CONF_IP_ADDRESS)) is not None:
+            options[CONF_IP_ADDRESS] = _clean_host(host)
+        return options

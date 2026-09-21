@@ -21,6 +21,19 @@ bash link_pontos.sh
 
 `link_hass_pontos.sh` does the same and is kept for the pre-2.9.3 name.
 
+## Diagnosing a device
+
+`diagnose.py` talks to a real device without Home Assistant and prints what it answers. Use it when
+the integration reports *cannot connect* or shows no entities, and to find out which device type a
+meter is:
+
+````
+python3 diagnose.py 192.168.1.100
+python3 diagnose.py pontos.fritz.box --port 5333 --make "SYR SafeTech+"
+````
+
+It only uses the standard library, so it runs on any machine (including the Home Assistant host).
+
 ## Endpoint coverage
 
 `endpoint_matrix.py` compares the keys of every simulated device payload with the endpoints that are

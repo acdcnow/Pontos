@@ -197,6 +197,23 @@ The commands documented for the SYR devices are listed in
 * Check that the device answers: `http://<ip>:5333/<prefix>/get/all` in a browser.
 * Use the correct **device type** – the URL prefix differs per model (`pontos-base`, `trio`, `safe-tec`, `neosoft`).
 * Make sure the port is not blocked and the device is in the same network.
+* Run the probe included in the repository for the raw answer of every endpoint:
+
+  ```
+  python3 testing/diagnose.py 192.168.1.100
+  ```
+
+  It reports which device type answers, the HTTP status and the first keys of the payload.
+* An IP address or a host name (`pontos.fritz.box`) can be entered.
+
+### No entities appear after setup
+
+* Check `Settings → Devices & Services → Pontos` – if the entry shows *Retrying setup*, the device did
+  not answer the poll; the log contains the reason (`Received no complete response from <ip>`).
+* Look at the integration's *Settings* dialog: **Create diagnostic entities** and **Enable control
+  entities** must be enabled, otherwise most entities are left out (up to 2.9.4 the dialog could open
+  with empty fields – press *Update* once in 2.9.5 to store the correct values).
+* The device type must match the meter, see above.
 
 ### Some sensors show `unavailable`
 
