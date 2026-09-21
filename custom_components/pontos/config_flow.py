@@ -52,6 +52,7 @@ from .const import MIN_RETRY_ATTEMPTS
 from .const import MIN_RETRY_DELAY
 from .const import VOLUME_UNITS
 from .const import get_option
+from .const import normalise_options
 from .utils import fetch_data
 
 LOGGER = logging.getLogger(__name__)
@@ -82,7 +83,16 @@ async def async_connection_works(
         max_attempts=1,
     )
 
-    return bool(data) and any(key.startswith("get") for key in data)
+    if not data:
+        return False
+
+    LOGGER.debug(
+        "%s answered with %s value(s): %s",
+        ip_address,
+        len(data),
+        ", ".join(sorted(data)[:10]),
+    )
+    return True
 
 
 def _interval_schema() -> NumberSelector:
@@ -182,11 +192,13 @@ class PontosConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                         CONF_DEVICE_NAME: user_input[CONF_DEVICE_NAME],
                         CONF_MAKE: user_input[CONF_MAKE],
                     },
-                    options={
-                        CONF_IP_ADDRESS: user_input[CONF_IP_ADDRESS],
-                        CONF_PORT: user_input[CONF_PORT],
-                        CONF_FETCH_INTERVAL: user_input[CONF_FETCH_INTERVAL],
-                    },
+                    options=normalise_options(
+                        {
+                            CONF_IP_ADDRESS: user_input[CONF_IP_ADDRESS],
+                            CONF_PORT: user_input[CONF_PORT],
+                            CONF_FETCH_INTERVAL: user_input[CONF_FETCH_INTERVAL],
+                        }
+                    ),
                 )
 
         return self.async_show_form(
@@ -226,11 +238,13 @@ class PontosConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                         CONF_DEVICE_NAME: user_input[CONF_DEVICE_NAME],
                         CONF_MAKE: user_input[CONF_MAKE],
                     },
-                    options={
-                        CONF_IP_ADDRESS: user_input[CONF_IP_ADDRESS],
-                        CONF_PORT: user_input[CONF_PORT],
-                        CONF_FETCH_INTERVAL: user_input[CONF_FETCH_INTERVAL],
-                    },
+                    options=normalise_options(
+                        {
+                            CONF_IP_ADDRESS: user_input[CONF_IP_ADDRESS],
+                            CONF_PORT: user_input[CONF_PORT],
+                            CONF_FETCH_INTERVAL: user_input[CONF_FETCH_INTERVAL],
+                        }
+                    ),
                 )
 
         return self.async_show_form(
@@ -376,7 +390,7 @@ class PontosOptionsFlow(OptionsFlow):
                     vol.Schema(
                         {
                             vol.Required(CONF_DEVICE_NAME): TextSelector(),
-                            vol.Required(CONF_MAKE): _make_schema(DEFAULT_MAKE),
+                            vol.Required(CONF_MAKE): _make_schema(),
                         }
                     ),
                     {"collapsed": True},
@@ -413,9 +427,9 @@ class PontosOptionsFlow(OptionsFlow):
 
     @staticmethod
     def _flatten(user_input: dict) -> dict:
-        """Flatten the sectioned form input."""
+        """Flatten the sectioned form input and fix the value types."""
         options: dict = {}
         for value in user_input.values():
             if isinstance(value, dict):
                 options.update(value)
-        return options
+        return normalise_options(options)

@@ -17,12 +17,26 @@ from .const import DEFAULT_RETRY_DELAY
 _LOGGER = logging.getLogger(__name__)
 
 
+def _device_port(port: Any) -> int:
+    """Return the TCP port as an integer.
+
+    The config/options flow uses a number selector, which returns a float. Used
+    unmodified in a URL this produced "http://host:5333.0/...", which never
+    connects.
+    """
+    try:
+        return int(float(port))
+    except (TypeError, ValueError):
+        return DEFAULT_PORT
+
+
 def build_urls(ip_address: str, url_list: str | list[str], port: int) -> list[str]:
     """Expand the device specific URL templates into full URLs."""
     if isinstance(url_list, str):
         url_list = [url_list]
 
-    return [url.format(ip=ip_address, port=port) for url in url_list]
+    device_port = _device_port(port)
+    return [url.format(ip=ip_address, port=device_port) for url in url_list]
 
 
 async def fetch_data(
@@ -41,12 +55,13 @@ async def fetch_data(
     """
     urls = build_urls(ip_address, url_list, port)
     session = async_get_clientsession(hass)
-    client_timeout = ClientTimeout(total=timeout)
+    client_timeout = ClientTimeout(total=float(timeout))
+    attempts = max(1, int(max_attempts))
 
     data: dict[str, Any] = {}
     errors: list[str] = []
 
-    for attempt in range(1, max_attempts + 1):
+    for attempt in range(1, attempts + 1):
         data = {}
         errors = []
 
@@ -75,12 +90,12 @@ async def fetch_data(
         if not errors:
             return data
 
-        if attempt < max_attempts:
+        if attempt < attempts:
             delay = retry_delay * attempt
             _LOGGER.warning(
                 "Attempt %s/%s for %s failed (%s), retrying in %ss",
                 attempt,
-                max_attempts,
+                attempts,
                 ip_address,
                 "; ".join(errors),
                 delay,
@@ -108,7 +123,8 @@ async def send_command(
 
     Returns True when the endpoint answered with a success status.
     """
-    url = f"{base_url.format(ip=ip_address, port=port)}{endpoint.format(**(payload or {}))}"
+    base = base_url.format(ip=ip_address, port=_device_port(port))
+    url = f"{base}{endpoint.format(**(payload or {}))}"
     session = async_get_clientsession(hass)
 
     try:

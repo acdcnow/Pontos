@@ -90,6 +90,20 @@ OPTION_DEFAULTS: dict[str, Any] = {
     CONF_DEBUG_LOGGING: False,
 }
 
+#: Options that must be integral. The frontend number selector always returns a
+#: float, which would end up in the device URL ("http://host:5333.0/...") and in
+#: range()/list indexing at runtime.
+INT_OPTIONS: frozenset[str] = frozenset(
+    {
+        CONF_PORT,
+        CONF_HTTP_TIMEOUT,
+        CONF_RETRY_ATTEMPTS,
+        CONF_RETRY_DELAY,
+        CONF_FETCH_INTERVAL,
+        CONF_STALE_TOLERANCE,
+    }
+)
+
 MAKES = {
     "Hansgrohe Pontos": conf_pontos,
     "SYR Trio": conf_trio,
@@ -118,12 +132,27 @@ def get_device_const(entry: ConfigEntry):
     return MAKES[get_make(entry)]
 
 
+def coerce_option(key: str, value: Any) -> Any:
+    """Return an option value coerced to the type it is used as."""
+    if value is None or key not in INT_OPTIONS:
+        return value
+
+    try:
+        return int(float(value))
+    except (TypeError, ValueError):
+        return OPTION_DEFAULTS.get(key)
+
+
 def get_option(entry: ConfigEntry, key: str) -> Any:
-    """Return an option, falling back to its default."""
+    """Return an option, falling back to its default.
+
+    Values are coerced on read, so entries that stored a float port (the
+    frontend number selector always returns a float) work again as well.
+    """
     if (value := entry.options.get(key)) is not None:
-        return value
+        return coerce_option(key, value)
     if (value := entry.data.get(key)) is not None:
-        return value
+        return coerce_option(key, value)
     return OPTION_DEFAULTS.get(key)
 
 
@@ -137,9 +166,12 @@ def get_device_name(entry: ConfigEntry) -> str:
 
 
 def normalise_options(options: dict[str, Any]) -> dict[str, Any]:
-    """Fill in missing options with their defaults."""
+    """Fill in missing options with their defaults and fix their types."""
     normalised = dict(options)
     for key, default in OPTION_DEFAULTS.items():
-        if normalised.get(key) is None and default is not None:
-            normalised[key] = default
+        if normalised.get(key) is None:
+            if default is not None:
+                normalised[key] = default
+            continue
+        normalised[key] = coerce_option(key, normalised[key])
     return normalised
