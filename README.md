@@ -208,6 +208,9 @@ The commands documented for the SYR devices are listed in
 
 ### No entities appear after setup
 
+* Up to **2.9.5** setup failed with `AttributeError: 'dict' object has no attribute 'add'` in
+  `services.py` (logged as *Error setting up entry Pontos for pontos*) and no entity could ever be
+  created - update to 2.9.6 or newer.
 * Check `Settings → Devices & Services → Pontos` – if the entry shows *Retrying setup*, the device did
   not answer the poll; the log contains the reason (`Received no complete response from <ip>`).
 * Look at the integration's *Settings* dialog: **Create diagnostic entities** and **Enable control
@@ -243,6 +246,10 @@ The *Enable debug logging* option does the same without editing `configuration.y
 
 * `testing/serve.py` simulates the device endpoints, `testing/link_pontos.sh` links this
   repository into a Home Assistant instance for development.
+* `testing/offline_smoke.py` runs the integration without Home Assistant (stubbed imports, simulated
+  payloads) and checks setup, entities, every service and unload for all five device types:
+  `python3 testing/offline_smoke.py`.
+* `testing/diagnose.py` talks to a real device and reports what it answers.
 * `documentation/readme.md` documents the device API and all known endpoints.
 * Pull requests must bump `version` in `custom_components/pontos/manifest.json` when the integration
   changes – the *Check Version* workflow enforces this.

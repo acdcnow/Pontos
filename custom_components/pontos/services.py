@@ -33,6 +33,9 @@ ATTR_DATA = "data"
 
 PROFILE_RANGE = vol.All(vol.Coerce(int), vol.Range(min=1, max=8))
 
+#: How long a service call waits for a running poll or command of the device.
+COMMAND_LOCK_TIMEOUT = 30
+
 
 def _schema(fields: dict[Any, Any] | None = None) -> vol.Schema:
     """Return a service schema including the common target fields."""
@@ -169,6 +172,18 @@ def _targeted_entries(hass: HomeAssistant, call: ServiceCall) -> list[dict[str, 
     return list(entries.values())
 
 
+def _format_value(value: Any) -> Any:
+    """Return a service value the way the device expects it in a URL.
+
+    The endpoints want the JSON literals `true`/`false`, not the Python
+    spelling of a boolean.
+    """
+    if isinstance(value, bool):
+        return "true" if value else "false"
+
+    return value
+
+
 def _resolve_payload(endpoint: str, call: ServiceCall) -> dict[str, Any]:
     """Map the service data onto the placeholders of the endpoint template."""
     placeholders = _placeholders(endpoint)
@@ -178,10 +193,10 @@ def _resolve_payload(endpoint: str, call: ServiceCall) -> dict[str, Any]:
     payload: dict[str, Any] = {}
     for name in placeholders:
         if name in call.data:
-            payload[name] = call.data[name]
+            payload[name] = _format_value(call.data[name])
         elif ATTR_DATA in call.data and len(placeholders) == 1:
             # Backwards compatibility with the old `data` service field.
-            payload[name] = call.data[ATTR_DATA]
+            payload[name] = _format_value(call.data[ATTR_DATA])
         else:
             raise ServiceValidationError(
                 f"Service call is missing the required field '{name}'"
@@ -231,28 +246,33 @@ async def async_service_handler(
         endpoint = config["endpoint"]
         payload = _resolve_payload(endpoint, call)
 
+        # The command lock is the same lock the coordinator holds while it
+        # polls the device, so it serialises commands against polls. The
+        # refresh afterwards must happen *outside* of it: the lock is not
+        # reentrant, refreshing while holding it would block forever.
         lock: asyncio.Lock = entry_data["command_lock"]
-        if lock.locked():
-            LOGGER.warning(
-                "Service '%s' skipped for %s: previous command still running",
-                service_name,
-                entry.title,
+        try:
+            await asyncio.wait_for(lock.acquire(), COMMAND_LOCK_TIMEOUT)
+        except TimeoutError as err:
+            raise HomeAssistantError(
+                f"Command '{service_name}' was not sent to {entry.title}: the"
+                " device is still busy"
+            ) from err
+
+        try:
+            await async_send_command(
+                hass, entry.entry_id, entry_data, endpoint, payload
             )
-            continue
+        except HomeAssistantError:
+            raise
+        except Exception as err:  # noqa: BLE001 - reported to the caller
+            raise HomeAssistantError(
+                f"Command '{service_name}' failed for {entry.title}: {err}"
+            ) from err
+        finally:
+            lock.release()
 
-        async with lock:
-            try:
-                await async_send_command(
-                    hass, entry.entry_id, entry_data, endpoint, payload
-                )
-            except HomeAssistantError:
-                raise
-            except Exception as err:  # noqa: BLE001 - reported to the caller
-                raise HomeAssistantError(
-                    f"Command '{service_name}' failed for {entry.title}: {err}"
-                ) from err
-
-            await entry_data["coordinator"].async_refresh()
+        await entry_data["coordinator"].async_refresh()
 
     if unsupported and len(unsupported) == len(entries):
         raise ServiceValidationError(
@@ -262,8 +282,12 @@ async def async_service_handler(
 
 async def async_register_services(hass: HomeAssistant) -> None:
     """Register all services offered by the supported devices."""
-    hass.data.setdefault(DOMAIN, {}).setdefault("services", {})
-    registered: set[str] = hass.data[DOMAIN]["services"]
+    domain_data = hass.data.setdefault(DOMAIN, {})
+    registered = domain_data.get("services")
+    if not isinstance(registered, set):
+        # Guard against a leftover container of another type, the entries are
+        # only kept in memory but a failed setup must not poison this.
+        registered = domain_data["services"] = set()
 
     for service_name in _all_services():
         if service_name in registered:
@@ -282,7 +306,8 @@ async def async_register_services(hass: HomeAssistant) -> None:
 
 async def async_unregister_services(hass: HomeAssistant) -> None:
     """Remove all services of this integration."""
-    for service_name in list(hass.data.get(DOMAIN, {}).get("services", set())):
+    registered = hass.data.get(DOMAIN, {}).get("services") or ()
+    for service_name in list(registered):
         if hass.services.has_service(DOMAIN, service_name):
             hass.services.async_remove(DOMAIN, service_name)
 
