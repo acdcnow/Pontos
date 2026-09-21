@@ -225,7 +225,7 @@ The *Enable debug logging* option does the same without editing `configuration.y
 
 ## Development
 
-* `testing/serve.py` simulates the device endpoints, `testing/link_hass_pontos.sh` links this
+* `testing/serve.py` simulates the device endpoints, `testing/link_pontos.sh` links this
   repository into a Home Assistant instance for development.
 * `documentation/readme.md` documents the device API and all known endpoints.
 * Pull requests must bump `version` in `custom_components/pontos/manifest.json` when the integration

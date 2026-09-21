@@ -16,7 +16,7 @@ python3 serve.py --device neosoft
 Needs to be done on git pull/reset etc. Allows for editing files in the git repository and have it update within home assistant automatically.
 
 ````
-bash link_hass_pontos.sh
+bash link_pontos.sh
 ````
 
 ## Endpoint coverage

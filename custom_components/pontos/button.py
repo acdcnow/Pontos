@@ -1,4 +1,5 @@
-# custom_components/hass_pontos/button.py
+"""Button platform for the Pontos / SYR integration."""
+
 import logging
 from homeassistant.components.button import ButtonEntity
 from homeassistant.util import slugify
