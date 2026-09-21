@@ -2,7 +2,10 @@ name: Check Version
 
 on:
   pull_request:
-    types: [opened, synchronize]
+    types: [opened, synchronize, reopened, ready_for_review]
+
+permissions:
+  contents: read
 
 jobs:
   check-version:
@@ -10,40 +13,50 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0  # Fetch all tags
-
-      - name: Get latest tag
-        id: get_latest_tag
-        run: |
-          if git describe --tags `git rev-list --tags --max-count=1` > /dev/null 2>&1; then
-            latest_tag=$(git describe --tags `git rev-list --tags --max-count=1`)
-            echo "latest_tag=$latest_tag" >> $GITHUB_ENV
-          else
-            echo "No tags found."
-            echo "latest_tag=" >> $GITHUB_ENV
-          fi
 
       - name: Read version from manifest.json
         id: read_version
         run: |
-          version=$(jq -r '.version' custom_components/hass_pontos/manifest.json)
+          version=$(jq -r '.version' custom_components/pontos/manifest.json)
           echo "version=$version" >> $GITHUB_ENV
+          echo "Manifest version: $version"
 
-      - name: Compare versions
+      - name: Get latest tag
+        id: get_latest_tag
         run: |
-          latest_tag=${{ env.latest_tag }}
-          version=${{ env.version }}
-          if [ -z "$latest_tag" ]; then
-            echo "No tags found, skipping version check."
-          else
-            latest_tag_numeric=$(echo $latest_tag | sed 's/v//; s/[^0-9.]//g')
-            version_numeric=$(echo $version | sed 's/v//; s/[^0-9.]//g')
-            if [ "$(printf '%s\n' "$latest_tag_numeric" "$version_numeric" | sort -V | head -n1)" = "$latest_tag_numeric" ] && [ "$latest_tag_numeric" != "$version_numeric" ]; then
-              echo "Version in manifest.json ($version) is greater than the latest tag ($latest_tag)."
-            else
-              echo "Version in manifest.json ($version) is not greater than the latest tag ($latest_tag)."
-              exit 1
-            fi
+          # Tags are used with and without the "v" prefix, normalise them.
+          latest_tag=$(git tag --sort=-v:refname | head -n1 | sed 's/^v//')
+          echo "latest_tag=$latest_tag" >> $GITHUB_ENV
+          echo "Latest tag: ${latest_tag:-<none>}"
+
+      - name: Fail if the version was lowered
+        if: env.latest_tag != ''
+        run: |
+          version="${version#v}"
+          sorted=$(printf '%s\n%s\n' "$latest_tag" "$version" | sort -V)
+          if [ "$(printf '%s\n' "$sorted" | head -n1)" = "$version" ] \
+             && [ "$version" != "$latest_tag" ]; then
+            echo "::error::Version in manifest.json ($version) is lower than the latest tag ($latest_tag)."
+            exit 1
           fi
+          echo "Version $version is not lower than the latest tag $latest_tag."
+
+      - name: Require a version bump when the integration changed
+        if: env.latest_tag != ''
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        run: |
+          version="${version#v}"
+          git fetch --no-tags origin "+refs/heads/${BASE_REF}:refs/remotes/origin/${BASE_REF}"
+          if git diff --quiet "origin/${BASE_REF}...HEAD" -- custom_components; then
+            echo "custom_components is unchanged, no version bump required."
+            exit 0
+          fi
+          if [ "$version" = "$latest_tag" ]; then
+            echo "::error::custom_components changed, but manifest.json still has version $version which is already released as tag $latest_tag. Please bump the version."
+            exit 1
+          fi
+          echo "Version $version is newer than the latest tag $latest_tag."
