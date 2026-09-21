@@ -18,3 +18,13 @@ Needs to be done on git pull/reset etc. Allows for editing files in the git repo
 ````
 bash link_hass_pontos.sh
 ````
+
+## Endpoint coverage
+
+`endpoint_matrix.py` compares the keys of every simulated device payload with the endpoints that are
+referenced in the device configurations. Run it with plain python to see which endpoints of a
+fixture are not used yet:
+
+````
+python endpoint_matrix.py
+````
