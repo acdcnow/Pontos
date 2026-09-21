@@ -19,6 +19,8 @@ Needs to be done on git pull/reset etc. Allows for editing files in the git repo
 bash link_pontos.sh
 ````
 
+`link_hass_pontos.sh` does the same and is kept for the pre-2.9.3 name.
+
 ## Endpoint coverage
 
 `endpoint_matrix.py` compares the keys of every simulated device payload with the endpoints that are
