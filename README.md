@@ -7,8 +7,7 @@
 Home Assistant integration for **Hansgrohe Pontos** and **SYR** water meters, talking to the
 device's local HTTP API on port 5333 – no cloud, no account, everything stays in your network.
 
-> Fork of [sangvikh/hass-pontos](https://github.com/sangvikh/hass-pontos), maintained by
-> [@acdcnow](https://github.com/acdcnow). All original work is by [@sangvikh](https://github.com/sangvikh).
+> Fork of [sangvikh/hass-pontos](https://github.com/sangvikh/hass-pontos). All original work is by [@sangvikh](https://github.com/sangvikh).
 > This fork is **not** the HACS default store repository: add it as a
 > [custom repository](https://hacs.xyz/docs/faq/custom_repositories/) (see [Installation](#installation)).
 
