@@ -1,0 +1,14 @@
+{
+	"domain": "pontos",
+	"name": "Pontos",
+	"codeowners": [
+		"@acdcnow"
+	],
+	"config_flow": true,
+	"dependencies": [],
+	"documentation": "https://github.com/acdcnow/pontos",
+	"iot_class": "local_polling",
+	"issue_tracker": "https://github.com/acdcnow/pontos/issues",
+	"requirements": [],
+	"version": "2.9.3"
+}
