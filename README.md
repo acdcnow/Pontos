@@ -7,6 +7,9 @@
 Home Assistant integration for **Hansgrohe Pontos** and **SYR** water meters, talking to the
 device's local HTTP API on port 5333 – no cloud, no account, everything stays in your network.
 
+Home Assistant and HACS list the integration as **Hansgrohe Pontos**; the domain stays `pontos`, so
+entity ids, unique ids and existing config entries are unaffected by the name.
+
 > Fork of [sangvikh/hass-pontos](https://github.com/sangvikh/hass-pontos). All original work is by [@sangvikh](https://github.com/sangvikh).
 > This fork is **not** the HACS default store repository: add it as a
 > [custom repository](https://hacs.xyz/docs/faq/custom_repositories/) (see [Installation](#installation)).
@@ -146,6 +149,18 @@ The available entities depend on the model. The following table lists the most i
 | Salt quantity, Salt stock | sensor | NeoSoft only |
 | WLAN/LAN IP address, gateway, SSID, MAC | sensor | Diagnostic |
 
+### Devices
+
+Every config entry creates **two** devices:
+
+| Device | What it carries |
+|---|---|
+| `<device name>` | The measurements, the buttons (clear alarms, …) and the profile selection |
+| `<device name> configuration` | The settings: profile limits, microleakage schedule and time, regeneration mode/interval/time, buzzer |
+
+The configuration device is linked to the meter as a sub device, so the meter stays about its
+measurements. Entity ids and unique ids are unchanged, the settings only moved to another device card.
+
 ## Services
 
 All services can target a single device with the **Device** field (or `entry_id`). Without a
@@ -225,6 +240,13 @@ The commands documented for the SYR devices are listed in
 * Diagnostic entities that the model does not support stay unavailable by design; you can switch them
   off with *Create diagnostic entities* or disable the individual entity.
 
+### Controls are greyed out / the profile dropdown is empty
+
+* Up to **2.9.6** the controls looked up the sensor they mirror in the entity registry, with a unique id
+  that never matched the sensor's own id. The alarm button and the profile selection therefore stayed
+  unavailable. **2.9.7** reads the values from the coordinator instead - if a control is still greyed
+  out, enable debug logging and look for `cannot find the sensor`.
+
 ### Statistics look wrong
 
 * Leave *Ignore implausible values* enabled. A negative cumulative volume would otherwise be treated
@@ -250,6 +272,8 @@ The *Enable debug logging* option does the same without editing `configuration.y
   payloads) and checks setup, entities, every service and unload for all five device types:
   `python3 testing/offline_smoke.py`.
 * `testing/diagnose.py` talks to a real device and reports what it answers.
+* `testing/check_translations.py` compares `strings.json` and the translation files with the labels the
+config and options flow actually look up.
 * `documentation/readme.md` documents the device API and all known endpoints.
 * Pull requests must bump `version` in `custom_components/pontos/manifest.json` when the integration
   changes – the *Check Version* workflow enforces this.

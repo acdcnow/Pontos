@@ -14,6 +14,7 @@ from .const import MAKES
 from .const import get_make
 from .const import get_option
 from .coordinator import PontosDataUpdateCoordinator
+from .device import configuration_device_info
 from .device import register_device
 from .migrate import migrate_entry
 from .services import async_unregister_services
@@ -37,6 +38,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         "entry": entry,
         "coordinator": coordinator,
         "device_info": None,
+        "device_id": None,
+        "config_device_info": None,
         "command_lock": coordinator.lock,
     }
 
@@ -46,6 +49,13 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         LOGGER.error("Error setting up device: %s", err)
         hass.data[DOMAIN]["entries"].pop(entry.entry_id, None)
         raise ConfigEntryNotReady(f"Could not read device information: {err}") from err
+
+    # The settings (profile limits, profile selection, ...) belong to their own
+    # device so the meter device stays about its measurements.
+    entry_data = hass.data[DOMAIN]["entries"][entry.entry_id]
+    entry_data["config_device_info"] = configuration_device_info(
+        entry, entry_data["device_info"], entry_data["device_id"]
+    )
 
     await async_register_services(hass)
 

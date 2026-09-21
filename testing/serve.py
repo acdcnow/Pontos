@@ -1,7 +1,7 @@
 import argparse
 import json
 import os
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify
 
 DEVICE_CONFIGS = {
     "safetech": {

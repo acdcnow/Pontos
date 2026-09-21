@@ -354,10 +354,14 @@ class FakeStates:
 class FakeDevice:
     """Device registry entry."""
 
-    def __init__(self, device_id: str, config_entry_id: str) -> None:
+    def __init__(
+        self, device_id: str, config_entry_id: str, identifiers: Any = ()
+    ) -> None:
         """Store the ids."""
         self.id = device_id
         self.config_entry_id = config_entry_id
+        self.identifiers = tuple(identifiers)
+        self.data: dict[str, Any] = {}
 
 
 class FakeDeviceRegistry:
@@ -372,9 +376,17 @@ class FakeDeviceRegistry:
         return self.devices.get(device_id)
 
     def async_get_or_create(self, **kwargs: Any) -> FakeDevice:
-        """Create a device."""
+        """Return the device for these identifiers, creating it if needed."""
+        identifiers = tuple(sorted(map(tuple, kwargs.get("identifiers") or ())))
+        for device in self.devices.values():
+            if device.identifiers == identifiers:
+                return device
+
         self.created.append(kwargs)
-        device = FakeDevice("device1", kwargs["config_entry_id"])
+        device = FakeDevice(
+            f"device{len(self.devices) + 1}", kwargs["config_entry_id"], identifiers
+        )
+        device.data = kwargs
         self.devices[device.id] = device
         return device
 
@@ -478,6 +490,14 @@ class FakeConfigEntries:
                 collected = []
                 for entity in entities:
                     entity.hass = self.hass
+                    # Home Assistant registers the device of an entity itself, so
+                    # the harness does the same to see which device it lands on.
+                    if (
+                        device_info := getattr(entity, "device_info", None)
+                    ) is not None:
+                        self.hass.device_registry.async_get_or_create(
+                            config_entry_id=entry.entry_id, **device_info
+                        )
                     collected.append(entity)
                     if len(collected) >= MAX_ENTITIES:
                         self.endless_generator.append(platform)
@@ -563,6 +583,7 @@ async def check_make(
     total = sum(len(entities) for entities in hass.config_entries.entities.values())
     phase(
         f"{make}: {total} entities, {len(registered)} services,"
+        f" {len(hass.device_registry.devices)} device(s),"
         f" platforms {hass.config_entries.forwarded}"
     )
     if total == 0:
@@ -601,6 +622,71 @@ async def check_make(
                 failures.append(f"{make}: {platform}.{key} async_added_to_hass hung")
             except Exception as err:  # noqa: BLE001
                 failures.append(f"{make}: {platform}.{key} properties raised {err!r}")
+
+    # The controls have to be usable: an entity that cannot find the sensor it
+    # mirrors stays greyed out in the UI. The settings also have to live on the
+    # separate configuration device, so the meter stays about its measurements.
+    entry_data = hass.data[const.DOMAIN]["entries"][entry.entry_id]
+    control_platforms = {"button", "number", "select", "switch", "time"}
+    setting_platforms = {"number", "switch", "time"}
+    meter_identifiers = set(entry_data["device_info"]["identifiers"])
+    config_identifiers = set(entry_data["config_device_info"]["identifiers"])
+    needs_config_device = False
+    config_device_registered = False
+    controls_checked = 0
+
+    for platform, entities in hass.config_entries.entities.items():
+        if platform not in control_platforms:
+            continue
+
+        for entity in entities:
+            controls_checked += 1
+            key = (
+                getattr(entity, "_key", None)
+                or getattr(entity, "_attr_name", None)
+                or getattr(entity, "_endpoint", "?")
+            )
+            config = getattr(entity, "_config", {})
+            reference = config.get("sensor") or config.get("availability_sensor")
+            if reference and not getattr(entity, "_source_endpoint", None):
+                failures.append(
+                    f"{make}: {platform}.{key} cannot find the sensor '{reference}'"
+                )
+            if entity.available is not True:
+                failures.append(f"{make}: {platform}.{key} is unavailable")
+
+            # The profile selection and the buttons control the meter, the
+            # settings get their own device.
+            settings = platform in setting_platforms or (
+                platform == "select" and key != "profile_select"
+            )
+            expected = config_identifiers if settings else meter_identifiers
+            if settings:
+                needs_config_device = True
+
+            identifiers = set((entity.device_info or {}).get("identifiers") or ())
+            if identifiers != expected:
+                failures.append(
+                    f"{make}: {platform}.{key} belongs to {sorted(identifiers)},"
+                    f" expected {sorted(expected)}"
+                )
+
+    for created in hass.device_registry.created:
+        if set(created.get("identifiers") or ()) == config_identifiers:
+            config_device_registered = True
+            if created.get("via_device_id") != entry_data["device_id"]:
+                failures.append(
+                    f"{make}: the configuration device is not linked to the meter"
+                )
+
+    if needs_config_device and not config_device_registered:
+        failures.append(f"{make}: the configuration device was not created")
+
+    phase(
+        f"{make}: {controls_checked} control(s) usable, settings on"
+        f" '{entry_data['config_device_info']['name']}'",
+        indent=1,
+    )
 
     # Service calls build the documented URLs and refresh the coordinator.
     device_const = const.get_device_const(entry)

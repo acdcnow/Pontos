@@ -22,14 +22,25 @@
       "init": {
         "title": "Configurer l’appareil",
         "description": "Mettez à jour la configuration de votre appareil",
-        "data": {
-          "ip_address": "Adresse IP",
-          "fetch_interval": "Intervalle de relevé (s)"
+        "sections": {
+          "connection": {
+            "name": "Connexion",
+            "data": {
+              "ip_address": "Adresse IP"
+            }
+          },
+          "polling": {
+            "name": "Interrogation",
+            "data": {
+              "fetch_interval": "Intervalle de relevé (s)"
+            }
+          }
         }
       }
     },
     "error": {
-      "cannot_connect": "Impossible de se connecter à l’appareil"
+      "cannot_connect": "Impossible de se connecter à l’appareil",
+      "invalid_ip": "L’adresse IP n’est pas valide"
     }
   },
   "services": {

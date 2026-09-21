@@ -1,8 +1,9 @@
-# Pontos
+# Hansgrohe Pontos
 
 Local integration for **Hansgrohe Pontos** and **SYR** water meters (Trio, SafeTech+, SafeTech+ old
 firmware, NeoSoft). Everything is polled directly from the device over your local network – no
-cloud, no account.
+cloud, no account. In Home Assistant the integration is listed as **Hansgrohe Pontos**, the domain
+stays `pontos`.
 
 ## What you get
 
@@ -16,6 +17,8 @@ cloud, no account.
 * **Self-study phase** for SYR SafeTech+/Trio – start it, delete it and read the determined values.
 * **Reliable statistics** – implausible values such as a negative cumulative volume are ignored, the
   last valid value is kept and the rejected value is exposed as an attribute.
+* **A tidy device list** – every meter gets a second device for its settings (profile limits,
+  microleakage schedule, regeneration, buzzer), linked to the meter as a sub device.
 
 ## Configuration
 

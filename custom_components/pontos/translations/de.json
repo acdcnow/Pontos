@@ -1,5 +1,5 @@
 {
-  "title": "Pontos",
+  "title": "Hansgrohe Pontos",
   "config": {
     "step": {
       "user": {
@@ -35,40 +35,50 @@
       "init": {
         "title": "Gerät konfigurieren",
         "description": "Aktualisiere die Einstellungen für dein Gerät",
-        "data": {
-          "ip_address": "IP-Adresse",
-          "port": "Port",
-          "http_timeout": "HTTP-Timeout (s)",
-          "retry_attempts": "Anzahl Wiederholungen",
-          "retry_delay": "Wartezeit zwischen Wiederholungen (s)",
-          "fetch_interval": "Aktualisierungshäufigkeit (s)",
-          "device_name": "Gerätename",
-          "make": "Gerätetyp",
-          "ignore_invalid_values": "Unplausible Werte ignorieren",
-          "stale_tolerance": "Letzten gültigen Wert behalten für (min)",
-          "volume_unit": "Einheit der Volumensensoren",
-          "enable_diagnostics": "Diagnose-Entitäten anlegen",
-          "enable_controls": "Steuerungs-Entitäten anlegen",
-          "debug_logging": "Debug-Protokollierung aktivieren"
-        },
         "sections": {
           "connection": {
-            "name": "Verbindung"
+            "name": "Verbindung",
+            "data": {
+              "ip_address": "IP-Adresse",
+              "port": "Port",
+              "http_timeout": "HTTP-Timeout (s)",
+              "retry_attempts": "Anzahl Wiederholungen",
+              "retry_delay": "Wartezeit zwischen Wiederholungen (s)"
+            }
           },
           "polling": {
-            "name": "Abfrage"
+            "name": "Abfrage",
+            "data": {
+              "fetch_interval": "Aktualisierungshäufigkeit (s)"
+            }
           },
           "device": {
-            "name": "Gerät"
+            "name": "Gerät",
+            "data": {
+              "device_name": "Gerätename",
+              "make": "Gerätetyp"
+            }
           },
           "data_quality": {
-            "name": "Datenqualität"
+            "name": "Datenqualität",
+            "data": {
+              "ignore_invalid_values": "Unplausible Werte ignorieren",
+              "stale_tolerance": "Letzten gültigen Wert behalten für (min)",
+              "volume_unit": "Einheit der Volumensensoren"
+            }
           },
           "entities": {
-            "name": "Entitäten"
+            "name": "Entitäten",
+            "data": {
+              "enable_diagnostics": "Diagnose-Entitäten anlegen",
+              "enable_controls": "Steuerungs-Entitäten anlegen"
+            }
           },
           "logging": {
-            "name": "Protokollierung"
+            "name": "Protokollierung",
+            "data": {
+              "debug_logging": "Debug-Protokollierung aktivieren"
+            }
           }
         }
       }

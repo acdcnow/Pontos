@@ -1,6 +1,6 @@
 {
 	"domain": "pontos",
-	"name": "Pontos",
+	"name": "Hansgrohe Pontos",
 	"codeowners": [
 		"@acdcnow"
 	],
@@ -10,5 +10,5 @@
 	"iot_class": "local_polling",
 	"issue_tracker": "https://github.com/acdcnow/pontos/issues",
 	"requirements": [],
-	"version": "2.9.6"
+	"version": "2.9.7"
 }

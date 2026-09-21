@@ -46,7 +46,13 @@ async def async_setup_entry(
     limit = profile_limit(device_const, coordinator)
     entities = [
         PontosNumber(
-            entry, identifier, entry_data["device_info"], coordinator, key, config
+            entry,
+            identifier,
+            # The profile limits are settings, so they get their own device.
+            entry_data["config_device_info"],
+            coordinator,
+            key,
+            config,
         )
         for key, config in numbers.items()
         if config.get("profile", 0) <= limit
@@ -93,7 +99,7 @@ class PontosNumber(CoordinatorEntity[PontosDataUpdateCoordinator], NumberEntity)
     @property
     def device_info(self) -> dict[str, Any]:
         """Return the device this entity belongs to."""
-        return {"identifiers": self._device_info["identifiers"]}
+        return self._device_info
 
     @property
     def available(self) -> bool:

@@ -51,6 +51,29 @@ container type, a signature mismatch between a service schema and its endpoint, 
 poller and the command lock, a Python boolean in a URL - none of which a linter or `hassfest` can see.
 Exit code 0 means every device type sets up, creates its entities, answers its services and unloads.
 
+The run also asserts the things a user notices first: every control (button, number, select, switch,
+time) is *available* and finds the sensor it mirrors, and the settings land on the second device of the
+entry (the *\<device name\> configuration* device) while the buttons and the profile selection stay on
+the meter.
+
+## Translation check
+
+`check_translations.py` imports the real config/options flow with stubbed Home Assistant imports,
+derives the translation paths the flows need and compares them with `strings.json` and every
+`translations/<lang>.json`:
+
+````
+python3 check_translations.py
+````
+
+A label for a field inside a section has to live in that section
+(`options.step.init.sections.connection.data.ip_address`), otherwise Home Assistant falls back to the
+raw key and the dialog shows `ip_address` instead of *IP address*. Missing keys in a non English file
+are not an error - Home Assistant loads English first and overlays the requested language - but a
+missing key in `strings.json`/`en.json` is, and so is a `strings.json` that differs from `en.json`.
+The script also names every entity of every device family and every service from `services.yaml`, so a
+new entity without a translation is caught before a release.
+
 ## Endpoint coverage
 
 `endpoint_matrix.py` compares the keys of every simulated device payload with the endpoints that are

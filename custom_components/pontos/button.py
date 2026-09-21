@@ -1,114 +1,70 @@
 """Button platform for the Pontos / SYR integration."""
 
+from __future__ import annotations
+
 import logging
+from typing import Any
+
 from homeassistant.components.button import ButtonEntity
-from homeassistant.util import slugify
-from homeassistant.core import callback
-from homeassistant.helpers.event import async_track_state_change_event
-from homeassistant.helpers import entity_registry as er
-from homeassistant.const import STATE_UNAVAILABLE
+from homeassistant.config_entries import ConfigEntry
+from homeassistant.core import HomeAssistant
+from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from .const import CONF_ENABLE_CONTROLS
 from .const import DOMAIN
 from .const import get_device_const
 from .const import get_option
+from .control import PontosControlEntity
+from .coordinator import PontosDataUpdateCoordinator
 from .device import device_identifier
+from .device import entity_device_info
 
 LOGGER = logging.getLogger(__name__)
 
 
-async def async_setup_entry(hass, entry, async_add_entities):
+async def async_setup_entry(
+    hass: HomeAssistant,
+    entry: ConfigEntry,
+    async_add_entities: AddConfigEntryEntitiesCallback,
+) -> None:
+    """Set up the buttons of a device."""
     if not get_option(entry, CONF_ENABLE_CONTROLS):
         return
 
-    device_const = get_device_const(entry)
-    device_info = hass.data[DOMAIN]["entries"][entry.entry_id]["device_info"]
+    buttons: dict[str, dict[str, Any]] = getattr(get_device_const(entry), "BUTTONS", {})
+    if not buttons:
+        return
+
+    entry_data = hass.data[DOMAIN]["entries"][entry.entry_id]
+    coordinator: PontosDataUpdateCoordinator = entry_data["coordinator"]
+    identifier = device_identifier(entry_data["device_info"], entry)
+    device_info = entity_device_info(entry_data["device_info"])
 
     async_add_entities(
-        PontosServiceButton(hass, entry, device_info, key, config)
-        for key, config in getattr(device_const, "BUTTONS", {}).items()
+        PontosServiceButton(entry, identifier, device_info, coordinator, key, config)
+        for key, config in buttons.items()
     )
 
 
-class PontosServiceButton(ButtonEntity):
-    def __init__(self, hass, entry, device_info, key, config):
-        self._hass = hass
-        self._entry = entry
-        self._device_info = device_info
-        self._key = key
-        self._config = config
-        self._attr_translation_key = key
-        self._attr_has_entity_name = True
-        self._attr_entity_category = config.get("entity_category", None)
-        self._attr_unique_id = slugify(f"{device_identifier(device_info, entry)}_{key}")
-        self._availability_sensor_unique_id = None
-        self._available = True
+class PontosServiceButton(PontosControlEntity, ButtonEntity):
+    """A button that sends one command to the device."""
 
-        availability_sensor_key = config.get("availability_sensor")
-        if availability_sensor_key:
-            self._availability_sensor_unique_id = slugify(
-                f"{device_identifier(device_info, entry)}_{availability_sensor_key}"
-            )
+    def __init__(
+        self,
+        entry: ConfigEntry,
+        identifier: str,
+        device_info: dict[str, Any],
+        coordinator: PontosDataUpdateCoordinator,
+        key: str,
+        config: dict[str, Any],
+    ) -> None:
+        """Initialise the button."""
+        super().__init__(entry, identifier, device_info, coordinator, key, config)
+        self._service = config["service"]
 
-    async def async_added_to_hass(self):
-        await super().async_added_to_hass()
-
-        if not self._availability_sensor_unique_id:
-            return
-
-        entity_registry = er.async_get(self._hass)
-        sensor_entity_id = entity_registry.async_get_entity_id(
-            "sensor", DOMAIN, self._availability_sensor_unique_id
+    async def async_press(self) -> None:
+        """Send the command of this button."""
+        LOGGER.debug(
+            "Button '%s' pressed, calling service %s", self._key, self._service
         )
-
-        if sensor_entity_id:
-            sensor_state = self._hass.states.get(sensor_entity_id)
-            self._available = (
-                sensor_state.state != STATE_UNAVAILABLE if sensor_state else False
-            )
-            self.async_write_ha_state()
-
-            async_track_state_change_event(
-                self._hass, sensor_entity_id, self._sensor_state_changed
-            )
-        else:
-            LOGGER.warning(
-                f"Availability sensor {self._availability_sensor_unique_id} not found"
-            )
-            self._available = False
-            self.async_write_ha_state()
-
-    @callback
-    def _sensor_state_changed(self, event):
-        new_state = event.data.get("new_state")
-        if new_state is not None:
-            self._available = new_state.state != STATE_UNAVAILABLE
-            self.async_write_ha_state()
-
-    async def async_press(self):
-        """Handle button press."""
-        service = self._config.get("service")
-        if not service:
-            LOGGER.error(f"No service defined for button {self._key}")
-            return
-
-        LOGGER.info(f"Button pressed: {self._key} → calling service {service}")
-        await self._hass.services.async_call(
-            DOMAIN,
-            service,
-            service_data={"entry_id": self._entry.entry_id},
-        )
-
-    @property
-    def unique_id(self):
-        return self._attr_unique_id
-
-    @property
-    def device_info(self):
-        return {
-            "identifiers": self._device_info["identifiers"],
-        }
-
-    @property
-    def available(self):
-        return self._available
+        await self._call_service(self._service)

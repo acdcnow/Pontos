@@ -22,14 +22,25 @@
       "init": {
         "title": "Konfigurer enhet",
         "description": "Oppdater konfigurasjonen for din enhet",
-        "data": {
-          "ip_address": "IP-adresse",
-          "fetch_interval": "Oppdateringsfrekvens (s)"
+        "sections": {
+          "connection": {
+            "name": "Tilkobling",
+            "data": {
+              "ip_address": "IP-adresse"
+            }
+          },
+          "polling": {
+            "name": "Avspørring",
+            "data": {
+              "fetch_interval": "Oppdateringsfrekvens (s)"
+            }
+          }
         }
       }
     },
     "error": {
-      "cannot_connect": "Kunne ikke koble til enheten"
+      "cannot_connect": "Kunne ikke koble til enheten",
+      "invalid_ip": "IP-adressen er ugyldig"
     }
   },
   "services": {

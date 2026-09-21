@@ -124,12 +124,49 @@ async def register_device(
     """Register (or update) the device of a config entry."""
     device_info = await get_device_info(entry, coordinator)
 
-    hass.data[DOMAIN]["entries"][entry.entry_id]["device_info"] = device_info
+    entry_data = hass.data[DOMAIN]["entries"][entry.entry_id]
+    entry_data["device_info"] = device_info
 
     device_registry = async_get_device_registry(hass)
-    device_registry.async_get_or_create(config_entry_id=entry.entry_id, **device_info)
+    device_entry = device_registry.async_get_or_create(
+        config_entry_id=entry.entry_id, **device_info
+    )
+    # The registry id is needed to link the configuration device to it.
+    entry_data["device_id"] = device_entry.id
 
     return device_info
+
+
+def entity_device_info(device_info: DeviceInfo | None) -> dict[str, Any]:
+    """Return the DeviceInfo an entity reports for the device itself.
+
+    The device is registered by `register_device`, so the entities only have to
+    point at it by identifier.
+    """
+    return {"identifiers": (device_info or {}).get("identifiers", set())}
+
+
+def configuration_device_info(
+    entry: ConfigEntry, device_info: DeviceInfo | None, via_device_id: str | None
+) -> dict[str, Any]:
+    """Return the DeviceInfo of the configuration device of an entry.
+
+    The profile limits, the profile selection and the other settings get their
+    own device, so the device of the meter itself stays focused on the
+    measurements and the controls. It is linked to the meter as a sub device.
+    """
+    identifier = device_identifier(device_info, entry)
+    payload: dict[str, Any] = {
+        "identifiers": {(DOMAIN, f"{identifier}-configuration")},
+        "name": f"{get_device_name(entry)} configuration",
+        "manufacturer": (device_info or {}).get("manufacturer"),
+        "model": (device_info or {}).get("model"),
+    }
+
+    if via_device_id:
+        payload["via_device_id"] = via_device_id
+
+    return payload
 
 
 def get_stored_device_info(hass: HomeAssistant, entry_id: str) -> DeviceInfo | None:
