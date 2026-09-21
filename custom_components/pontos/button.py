@@ -39,9 +39,7 @@ class PontosServiceButton(ButtonEntity):
         self._attr_translation_key = key
         self._attr_has_entity_name = True
         self._attr_entity_category = config.get("entity_category", None)
-        self._attr_unique_id = slugify(
-            f"{device_identifier(device_info, entry)}_{key}"
-        )
+        self._attr_unique_id = slugify(f"{device_identifier(device_info, entry)}_{key}")
         self._availability_sensor_unique_id = None
         self._available = True
 

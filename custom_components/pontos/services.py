@@ -54,11 +54,7 @@ SERVICE_SCHEMAS: dict[str, vol.Schema] = {
     "disable_buzzer": _schema(),
     "microleakage_test": _schema(),
     "start_self_study": _schema(
-        {
-            vol.Required("days"): vol.All(
-                vol.Coerce(int), vol.Range(min=0, max=28)
-            )
-        }
+        {vol.Required("days"): vol.All(vol.Coerce(int), vol.Range(min=0, max=28))}
     ),
     "delete_self_study": _schema(),
     "set_profile": _schema({vol.Required("profile"): PROFILE_RANGE}),
@@ -87,9 +83,7 @@ SERVICE_SCHEMAS: dict[str, vol.Schema] = {
     "set_profile_return_time": _schema(
         {
             vol.Required("profile"): PROFILE_RANGE,
-            vol.Required("hours"): vol.All(
-                vol.Coerce(int), vol.Range(min=0, max=700)
-            ),
+            vol.Required("hours"): vol.All(vol.Coerce(int), vol.Range(min=0, max=700)),
         }
     ),
     "set_profile_availability": _schema(
@@ -105,11 +99,7 @@ SERVICE_SCHEMAS: dict[str, vol.Schema] = {
         }
     ),
     "microleakage_schedule": _schema(
-        {
-            vol.Required("schedule"): vol.All(
-                vol.Coerce(int), vol.Range(min=1, max=3)
-            )
-        }
+        {vol.Required("schedule"): vol.All(vol.Coerce(int), vol.Range(min=1, max=3))}
     ),
     "microleakage_time": _schema({vol.Required("time"): cv.string}),
     "set_regeneration_mode": _schema(
@@ -209,7 +199,6 @@ async def async_send_command(
 ) -> bool:
     """Send a command to a single device."""
     entry = entry_data["entry"]
-    coordinator = entry_data["coordinator"]
     device_const = get_device_const(entry)
 
     return await send_command(

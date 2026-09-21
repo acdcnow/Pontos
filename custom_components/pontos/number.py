@@ -45,7 +45,9 @@ async def async_setup_entry(
 
     limit = profile_limit(device_const, coordinator)
     entities = [
-        PontosNumber(entry, identifier, entry_data["device_info"], coordinator, key, config)
+        PontosNumber(
+            entry, identifier, entry_data["device_info"], coordinator, key, config
+        )
         for key, config in numbers.items()
         if config.get("profile", 0) <= limit
     ]

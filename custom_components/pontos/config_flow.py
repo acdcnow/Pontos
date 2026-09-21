@@ -38,10 +38,6 @@ from .const import DEFAULT_FETCH_INTERVAL
 from .const import DEFAULT_HTTP_TIMEOUT
 from .const import DEFAULT_MAKE
 from .const import DEFAULT_PORT
-from .const import DEFAULT_RETRY_ATTEMPTS
-from .const import DEFAULT_RETRY_DELAY
-from .const import DEFAULT_STALE_TOLERANCE
-from .const import DEFAULT_VOLUME_UNIT
 from .const import DOMAIN
 from .const import LEGACY_DOMAIN
 from .const import MAKES
@@ -255,9 +251,7 @@ class PontosConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 vol.Required(
                     CONF_FETCH_INTERVAL, default=DEFAULT_FETCH_INTERVAL
                 ): _interval_schema(),
-                vol.Required(
-                    CONF_DEVICE_NAME, default="Pontos"
-                ): TextSelector(),
+                vol.Required(CONF_DEVICE_NAME, default="Pontos"): TextSelector(),
                 vol.Required(CONF_MAKE, default=DEFAULT_MAKE): _make_schema(),
             }
         )
@@ -390,9 +384,7 @@ class PontosOptionsFlow(OptionsFlow):
                 vol.Required("data_quality"): section(
                     vol.Schema(
                         {
-                            vol.Required(
-                                CONF_IGNORE_INVALID_VALUES
-                            ): BooleanSelector(),
+                            vol.Required(CONF_IGNORE_INVALID_VALUES): BooleanSelector(),
                             vol.Required(CONF_STALE_TOLERANCE): _stale_schema(),
                             vol.Required(CONF_VOLUME_UNIT): _volume_unit_schema(),
                         }
@@ -402,9 +394,7 @@ class PontosOptionsFlow(OptionsFlow):
                 vol.Required("entities"): section(
                     vol.Schema(
                         {
-                            vol.Required(
-                                CONF_ENABLE_DIAGNOSTICS
-                            ): BooleanSelector(),
+                            vol.Required(CONF_ENABLE_DIAGNOSTICS): BooleanSelector(),
                             vol.Required(CONF_ENABLE_CONTROLS): BooleanSelector(),
                         }
                     ),

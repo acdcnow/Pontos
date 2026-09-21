@@ -8,10 +8,8 @@ from typing import Any
 
 from homeassistant.components.sensor import RestoreSensor
 from homeassistant.components.sensor import SensorDeviceClass
-from homeassistant.components.sensor import SensorEntity
 from homeassistant.components.sensor import SensorStateClass
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import EntityCategory
 from homeassistant.const import UnitOfVolume
 from homeassistant.core import HomeAssistant
 from homeassistant.core import callback
@@ -90,7 +88,9 @@ async def async_setup_entry(
             continue
 
         entities.append(
-            PontosSensor(entry, identifier, device_info, coordinator, key, sensor_config)
+            PontosSensor(
+                entry, identifier, device_info, coordinator, key, sensor_config
+            )
         )
 
     async_add_entities(entities)
@@ -180,9 +180,10 @@ class PontosSensor(CoordinatorEntity[PontosDataUpdateCoordinator], RestoreSensor
 
         # Keeps cumulative counters continuous across restarts, so an implausible
         # first reading after a restart does not create a gap in the statistics.
-        if self._is_numeric and (
-            last_data := await self.async_get_last_sensor_data()
-        ) is not None:
+        if (
+            self._is_numeric
+            and (last_data := await self.async_get_last_sensor_data()) is not None
+        ):
             if (number := _to_number(last_data.native_value)) is not None:
                 self._last_valid = number
                 self._last_valid_at = utcnow()

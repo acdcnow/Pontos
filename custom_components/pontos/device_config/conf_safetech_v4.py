@@ -341,6 +341,15 @@ SELECTORS = {"profile_select": {"name": "Profile", "type": "profile_select"}}
 # ---------------------------------------------------------------------------
 # Added in 2.9.3
 # ---------------------------------------------------------------------------
+# The device reports the conductivity with the legacy micro sign, which is not
+# the unit Home Assistant expects for the conductivity device class.
+SENSOR_DETAILS["water_conductivity"].update(
+    {
+        "device_class": SensorDeviceClass.CONDUCTIVITY,
+        "unit": UnitOfConductivity.MICROSIEMENS_PER_CM,
+    }
+)
+
 #: Endpoint that reports how many profiles the device has.
 PROFILE_COUNT_ENDPOINT = "getPRN"
 

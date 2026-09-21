@@ -6,7 +6,6 @@ from homeassistant.components.valve import (
 )
 from homeassistant.helpers.entity import EntityCategory
 from homeassistant.components.sensor import SensorDeviceClass, SensorStateClass
-from homeassistant.const import UnitOfConductivity
 
 from .common import build_alarm_binary_sensors
 from .common import build_network_sensors

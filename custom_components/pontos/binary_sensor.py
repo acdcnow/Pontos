@@ -46,7 +46,9 @@ async def async_setup_entry(
     )
 
 
-class PontosBinarySensor(CoordinatorEntity[PontosDataUpdateCoordinator], BinarySensorEntity):
+class PontosBinarySensor(
+    CoordinatorEntity[PontosDataUpdateCoordinator], BinarySensorEntity
+):
     """A binary sensor that is derived from a device endpoint."""
 
     _attr_has_entity_name = True
@@ -68,9 +70,7 @@ class PontosBinarySensor(CoordinatorEntity[PontosDataUpdateCoordinator], BinaryS
         self._key = key
         self._endpoint = config["endpoint"]
         self._code_dict = config.get("code_dict")
-        self._on_values = {
-            str(value).upper() for value in config.get("on_values", [])
-        }
+        self._on_values = {str(value).upper() for value in config.get("on_values", [])}
         self._off_values = {
             str(value).upper() for value in config.get("off_values", [])
         }

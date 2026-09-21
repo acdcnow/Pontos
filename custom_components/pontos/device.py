@@ -64,9 +64,7 @@ def _clean_mac(value: str | None) -> str | None:
     return None
 
 
-async def get_device_info(
-    entry: ConfigEntry, coordinator
-) -> DeviceInfo:
+async def get_device_info(entry: ConfigEntry, coordinator) -> DeviceInfo:
     """Build the DeviceInfo of a device from its first data sample."""
     device_const = get_device_const(entry)
 

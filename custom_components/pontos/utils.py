@@ -61,7 +61,9 @@ async def fetch_data(
                     if isinstance(payload, dict):
                         data.update(payload)
                     else:
-                        errors.append(f"{url}: unexpected payload {type(payload).__name__}")
+                        errors.append(
+                            f"{url}: unexpected payload {type(payload).__name__}"
+                        )
             except TimeoutError:
                 errors.append(f"{url}: request timed out after {timeout}s")
             except ClientError as err:

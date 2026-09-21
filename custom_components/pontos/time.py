@@ -84,7 +84,7 @@ class PontosTimeEntry(TimeEntity):
             )
         else:
             _LOGGER.warning(
-                f"Sensor for %s not found: %s", self._key, self._sensor_unique_id
+                "Sensor for %s not found: %s", self._key, self._sensor_unique_id
             )
             self._available = False
 
